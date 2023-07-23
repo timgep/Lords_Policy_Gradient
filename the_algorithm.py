@@ -13,7 +13,7 @@ import copy
 import pickle
 import time
 
-max_updates = 70 # maximum number of updates between episodes, 50-70.
+max_updates = 50 # maximum number of updates between episodes, 50-70.
 
 #used to create random seeds in Actor -> less dependendance on the specific random seed.
 def init_weights(m):
@@ -22,7 +22,7 @@ def init_weights(m):
 
 #Rectified Hubber Error Loss Function
 def ReHE(target, input, delta=1.0):
-    k = 1.0 if input.shape[0]>=1024 else 0.3
+    k = 1.0 if input.shape[0]>=1024 else 0.5
     ae = k*torch.abs(input-target).mean()
     return delta*ae*torch.tanh(ae/delta)
 
