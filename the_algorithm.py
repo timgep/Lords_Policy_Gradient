@@ -22,7 +22,7 @@ def init_weights(m):
 
 #Rectified Hubber Error Loss Function
 def ReHE(target, input, delta=1.0):
-    k = 1.0 if input.shape[0]>=1024 else 0.5
+    k = 1.0 if input.shape[0]>=1024 else 0.45
     ae = k*torch.abs(input-target).mean()
     return delta*ae*torch.tanh(ae/delta)
 
