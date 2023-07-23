@@ -13,7 +13,7 @@ import copy
 import pickle
 import time
 
-max_updates = 50 # maximum number of updates between episodes
+max_updates = 70 # maximum number of updates between episodes
 
 #used to create random seeds in Actor -> less dependendance on the specific random seed.
 def init_weights(m):
