@@ -40,7 +40,7 @@ class Spike(nn.Module):
 
 
 class FadingMemories:
-    def __init__(self, capacity=1024000):
+    def __init__(self, capacity=1280000):
         self.capacity = capacity
         self.cache, self.indices = [], []
         self.buffer, self.length = deque(maxlen=capacity), 0
