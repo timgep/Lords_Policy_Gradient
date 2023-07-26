@@ -44,7 +44,7 @@ class FadingMemories:
         self.capacity = capacity
         self.cache, self.indices = [], []
         self.buffer, self.length = deque(maxlen=capacity), 0
-        self.x, self.step, self.s, self.eps = 0.0, 4.0/capacity, 1.0, 0.1
+        self.x, self.step, self.s, self.eps = 0.0, 3.0/capacity, 1.0, 0.1
         self.counter = 0
 
 
