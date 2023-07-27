@@ -15,7 +15,7 @@ import time
 
 max_updates = 70 # maximum number of updates between episodes
 
-OPTION = 2 # 1 is TD3, 2 is decreased DDPG
+OPTION = 2 # 1 core is TD3, 2 is decreased DDPG
 
 if OPTION == 1:
     K1 = 1.0
