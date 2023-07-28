@@ -15,15 +15,6 @@ import time
 
 max_updates = 70 # maximum number of updates between episodes
 
-OPTION = 1 # 1 core is TD3, 2 is decreased DDPG
-
-if OPTION == 1:
-    K1 = 1.0
-    K2 = 0.45
-elif OPTION ==2:
-    K1 = 0.14
-    K2 = 0.07
-
 
 #used to create random seeds in Actor -> less dependendance on the specific random seed.
 def init_weights(m):
@@ -32,8 +23,7 @@ def init_weights(m):
 
 #Rectified Hubber Error Loss Function
 def ReHE(target, input, delta=1.0):
-    global K1, K2
-    k = K1 if input.shape[0]>=1024 else K2
+    k = 1.0 if input.shape[0]>=1024 else 0.45
     ae = k*torch.abs(input-target).mean()
     return delta*ae*torch.tanh(ae/delta)
 
@@ -172,7 +162,6 @@ class Critic(nn.Module):
         self.action_dim = action_dim
 
     def forward(self, state, action, united=False):
-        global OPTION
         x = torch.cat([state, action], -1)
         x = self.input(x)
 
@@ -180,10 +169,8 @@ class Critic(nn.Module):
         x2 = self.net2(x)
         x3 = self.net3(x)
 
-        if OPTION==1:
-            return torch.min(torch.stack([x1,x2,x3], dim=-1), dim=-1)[0]  if united else (x1, x2, x3)
-        elif OPTION==2:
-            return (x1+x2+x3)/3 if united else (x1, x2, x3)
+        return torch.min(torch.stack([x1,x2,x3], dim=-1), dim=-1)[0]  if united else (x1, x2, x3)
+        #return (x1+x2+x3)/3 if united else (x1, x2, x3)
        
 
 
