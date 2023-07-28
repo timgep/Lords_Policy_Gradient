@@ -21,8 +21,8 @@ if OPTION == 1:
     K1 = 1.0
     K2 = 0.45
 elif OPTION ==2:
-    K1 = 0.2
-    K2 = 0.09
+    K1 = 0.14
+    K2 = 0.07
 
 
 #used to create random seeds in Actor -> less dependendance on the specific random seed.
@@ -51,11 +51,11 @@ class Spike(nn.Module):
 
 
 class FadingMemories:
-    def __init__(self, capacity=1024000):
+    def __init__(self, capacity=2000000):
         self.capacity = capacity
         self.cache, self.indices = [], []
         self.buffer, self.length = deque(maxlen=capacity), 0
-        self.x, self.step, self.s, self.eps = 0.0, 3.0/capacity, 1.0, 0.1
+        self.x, self.step, self.s, self.eps = 0.0, 5.0/capacity, 1.0, 0.1
         self.counter = 0
 
 
