@@ -79,11 +79,11 @@ class FadingMemories:
 
 
 
-    def sample(self, device, sample_size=1024, batch_size=255):
-        if len(self.buffer) < sample_size: return None
+    def sample(self, device, batch_size=255):
+        if len(self.buffer) <  2*batch_size: return None
 
         # samples big batch then re-samples smaller batch with less priority to old data
-        sample_indices = random.sample(self.indices, k=sample_size)
+        sample_indices = random.sample(self.indices, k= 2*batch_size)
         probs = self.fade(np.array(sample_indices)/self.length)
         batch_indices = np.random.default_rng().choice(sample_indices, p=probs/np.sum(probs), size=batch_size, replace=False)
         batch = [self.buffer[indx-1] for indx in batch_indices]
@@ -202,8 +202,8 @@ class DDPG(object):
         if policy_training:
             ddpg.train(fm.sample(self.device))
             if episodic:
-                for _ in range(min(len(fm.buffer)//10240, self.max_updates)):
-                    ddpg.train(fm.sample(self.device, sample_size=10240, batch_size=2560))
+                for _ in range(min(len(fm.buffer)//5120, self.max_updates)):
+                    ddpg.train(fm.sample(self.device, batch_size=2560))
                 
 
 
@@ -329,7 +329,7 @@ for i in range(num_episodes):
     for steps in range(1,1000000,1):
          #-------------------decreases dependence on random seed: ------------------
         if not policy_training: ddpg.actor.apply(init_weights)
-        if len(fm)>=1024 and not policy_training: policy_training = True
+        if len(fm)>=512 and not policy_training: policy_training = True
 
         action = ddpg.select_action(obs, policy_training)
         next_obs, reward, done, info, _ = env.step(action)
