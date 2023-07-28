@@ -79,7 +79,7 @@ class FadingMemories:
 
 
 
-    def sample(self, device, sample_size=512, batch_size=127, CER=False):
+    def sample(self, device, sample_size=1024, batch_size=255):
         if len(self.buffer) < sample_size: return None
 
         # samples big batch then re-samples smaller batch with less priority to old data
@@ -89,7 +89,7 @@ class FadingMemories:
         batch = [self.buffer[indx-1] for indx in batch_indices]
 
         #Combined Experience Replay (the last transition is added to the batch):
-        if CER: batch.append(self.buffer[-1])
+        if len(batch)<=255: batch.append(self.buffer[-1])
         states, actions, rewards, next_states, dones = map(np.vstack, zip(*batch))
         
         return (
@@ -177,7 +177,7 @@ class Critic(nn.Module):
 
 # Define the soft actor-critic agent
 class DDPG(object):
-    def __init__(self, state_dim, action_dim, hidden_dim, max_action, device):
+    def __init__(self, state_dim, action_dim, hidden_dim, max_action, max_updates, device):
         self.actor = Actor(state_dim, action_dim, hidden_dim, max_action).to(device)
         
         self.critic = Critic(state_dim, action_dim, hidden_dim).to(device)
@@ -188,6 +188,8 @@ class DDPG(object):
 
 
         self.max_action = max_action
+        self.max_updates = max_updates
+        self.device = device
         self.state = None
 
     def select_action(self, state, policy_training):
@@ -195,6 +197,15 @@ class DDPG(object):
             state = torch.FloatTensor(state).reshape(-1,state.shape[-1]).to(device)
             action = self.actor(state, mean=policy_training)
         return action.cpu().data.numpy().flatten()
+    
+    def train_ctrl(self, policy_training, fm, episodic):
+        if policy_training:
+            ddpg.train(fm.sample(self.device))
+            if episodic:
+                for _ in range(min(len(fm.buffer)//10240, self.max_updates)):
+                    ddpg.train(fm.sample(self.device, sample_size=10240, batch_size=2560))
+                
+
 
     def train(self, batch):
         self.critic_update(batch)
@@ -262,7 +273,7 @@ max_action = torch.FloatTensor(env.action_space.high).to(device) if env.action_s
 max_action = 0.9*max_action
 
 fm = FadingMemories()
-ddpg = DDPG(state_dim, action_dim, hidden_dim, max_action, device)
+ddpg = DDPG(state_dim, action_dim, hidden_dim, max_action, max_updates, device)
 
 num_episodes, counter, total_rewards, test_rewards, policy_training = 1000000, 0, [], [], False
 
@@ -291,10 +302,8 @@ for i in range(num_episodes):
     #**************************************************************************
     #**********This part can be done with real robot before training***********
     #-------------------pre-training for big buffer > 10240--------------------
-    if policy_training:
-        for _ in range(min(len(fm.buffer)//10240, max_updates)):
-            ddpg.train(fm.sample(device=device, sample_size=10240, batch_size=2560, CER=False))
 
+    ddpg.train_ctrl(policy_training, fm, episodic=True)
    
 
     #-------------slightly random initial configuration as in OpenAI Pendulum-------------
@@ -304,9 +313,7 @@ for i in range(num_episodes):
         next_obs, reward, done, info, _ = env.step(action)
         obs = next_obs
         rewards.append(reward)
-        if policy_training:
-            ddpg.train(fm.sample(device=device, sample_size=1024, batch_size=256, CER=False))
-
+        ddpg.train_ctrl(policy_training, fm, episodic=False)
         counter += 1
         if done: break
         
@@ -321,8 +328,8 @@ for i in range(num_episodes):
     done = False
     for steps in range(1000000):
          #-------------------decreases dependence on random seed: ------------------
-        if not policy_training and steps%10==0: ddpg.actor.apply(init_weights)
-        if len(fm)>=512 and not policy_training: policy_training = True
+        if not policy_training and counter%10==0: ddpg.actor.apply(init_weights)
+        if len(fm)>=1024 and not policy_training: policy_training = True
 
         action = ddpg.select_action(obs, policy_training)
         next_obs, reward, done, info, _ = env.step(action)
@@ -330,8 +337,10 @@ for i in range(num_episodes):
         obs = next_obs
         rewards.append(reward)
         
-        if policy_training: ddpg.train(fm.sample(device=device, CER=True))
-        
+        ddpg.train_ctrl(policy_training, fm, steps%10240==0)
+
+            
+
         counter += 1
         if done: break
 
@@ -357,9 +366,7 @@ for i in range(num_episodes):
         for test_episode in range(10):
 
             #-----------------pre-training for big buffer > 10240---------------
-            if policy_training:
-                for _ in range(min(len(fm.buffer)//10240, max_updates)):
-                    ddpg.train(fm.sample(device=device, sample_size=10240, batch_size=2560, CER=False))
+            ddpg.train_ctrl(policy_training, fm, episodic=True)
 
             obs = env_test.reset()[0]
             rewards = []
@@ -370,8 +377,10 @@ for i in range(num_episodes):
                 fm.add_average([obs, action, reward, next_obs, done])
                 obs = next_obs
                 rewards.append(reward)
-                if policy_training: ddpg.train(fm.sample(device=device, CER=True))
-                    
+
+                ddpg.train_ctrl(policy_training, fm, steps%10240==0)
+
+
                 
                 counter += 1
                 if done: break
