@@ -348,7 +348,7 @@ for i in range(num_episodes):
     total_rewards.append(total_reward)
     average_reward = np.mean(total_rewards[-250:])
 
-    print(f"Ep {i}: Rtrn = {total_reward:.2f}, Avg = {average_reward:.2f}| ep steps = {steps+5}")
+    print(f"Ep {i}: Rtrn = {total_reward:.2f}, Avg = {average_reward:.2f}| ep steps = {steps+4}")
     #====================================================
     
 
