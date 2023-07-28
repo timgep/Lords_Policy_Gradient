@@ -328,7 +328,7 @@ for i in range(num_episodes):
     done = False
     for steps in range(1000000):
          #-------------------decreases dependence on random seed: ------------------
-        if not policy_training and counter%10==0: ddpg.actor.apply(init_weights)
+        if not policy_training: ddpg.actor.apply(init_weights)
         if len(fm)>=1024 and not policy_training: policy_training = True
 
         action = ddpg.select_action(obs, policy_training)
