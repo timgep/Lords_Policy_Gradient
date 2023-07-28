@@ -337,7 +337,7 @@ for i in range(num_episodes):
         obs = next_obs
         rewards.append(reward)
         
-        ddpg.train_ctrl(policy_training, fm, steps%10240==0)
+        ddpg.train_ctrl(policy_training, fm, steps%5120==0)
 
             
 
@@ -378,7 +378,7 @@ for i in range(num_episodes):
                 obs = next_obs
                 rewards.append(reward)
 
-                ddpg.train_ctrl(policy_training, fm, steps%10240==0)
+                ddpg.train_ctrl(policy_training, fm, steps%5120==0)
 
 
                 
