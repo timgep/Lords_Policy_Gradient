@@ -295,9 +295,7 @@ for i in range(num_episodes):
         for _ in range(min(len(fm.buffer)//10240, max_updates)):
             ddpg.train(fm.sample(device=device, sample_size=10240, batch_size=2560, CER=False))
 
-
-    #-------------------decreases dependence on random seed: ------------------
-    if not policy_training: ddpg.actor.apply(init_weights)
+   
 
     #-------------slightly random initial configuration as in OpenAI Pendulum-------------
     action = 0.1*max_action.to('cpu').numpy()*np.random.uniform(-1.0, 1.0, size=action_dim)
@@ -322,6 +320,8 @@ for i in range(num_episodes):
 
     done = False
     for steps in range(1000000):
+         #-------------------decreases dependence on random seed: ------------------
+        if not policy_training and steps%10==0: ddpg.actor.apply(init_weights)
         if len(fm)>=512 and not policy_training: policy_training = True
 
         action = ddpg.select_action(obs, policy_training)
