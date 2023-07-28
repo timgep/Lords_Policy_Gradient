@@ -326,7 +326,7 @@ for i in range(num_episodes):
     #------------------------training-------------------------
 
     done = False
-    for steps in range(1000000):
+    for steps in range(1,1000000,1):
          #-------------------decreases dependence on random seed: ------------------
         if not policy_training: ddpg.actor.apply(init_weights)
         if len(fm)>=1024 and not policy_training: policy_training = True
@@ -371,7 +371,7 @@ for i in range(num_episodes):
             obs = env_test.reset()[0]
             rewards = []
             done = False
-            for steps in range(1000000):
+            for steps in range(1,1000000,1):
                 action = ddpg.select_action(obs, policy_training)
                 next_obs, reward, done, info , _ = env_test.step(action)
                 fm.add_average([obs, action, reward, next_obs, done])
