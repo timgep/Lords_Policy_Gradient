@@ -176,7 +176,7 @@ class Critic(nn.Module):
 
 
 # Define the soft actor-critic agent
-class DDPG(object):
+class TD3(object):
     def __init__(self, state_dim, action_dim, hidden_dim, max_action, max_updates, device):
         self.actor = Actor(state_dim, action_dim, hidden_dim, max_action).to(device)
         
@@ -198,12 +198,12 @@ class DDPG(object):
             action = self.actor(state, mean=policy_training)
         return action.cpu().data.numpy().flatten()
     
-    def train_ctrl(self, policy_training, fm, episodic):
+    def train_ctrl(self, policy_training, replay_buffer, episodic=False):
         if policy_training:
-            ddpg.train(fm.sample(self.device))
+            td3.train(replay_buffer.sample(self.device))
             if episodic:
-                for _ in range(min(len(fm.buffer)//10240, self.max_updates)):
-                    ddpg.train(fm.sample(self.device, batch_size=2560))
+                for _ in range(min(len(replay_buffer.buffer)//10240, self.max_updates)):
+                    td3.train(replay_buffer.sample(self.device, batch_size=2560))
                 
 
 
@@ -272,8 +272,8 @@ print('action space high', env.action_space.high)
 max_action = torch.FloatTensor(env.action_space.high).to(device) if env.action_space.is_bounded() else 1.0
 max_action = 0.9*max_action
 
-fm = FadingMemories()
-ddpg = DDPG(state_dim, action_dim, hidden_dim, max_action, max_updates, device)
+replay_buffer = FadingMemories()
+td3 = TD3(state_dim, action_dim, hidden_dim, max_action, max_updates, device)
 
 num_episodes, counter, total_rewards, test_rewards, policy_training = 1000000, 0, [], [], False
 
@@ -281,14 +281,14 @@ num_episodes, counter, total_rewards, test_rewards, policy_training = 1000000, 0
 
 try:
     print("loading...")
-    ddpg.actor.load_state_dict(torch.load('actor_model.pt'))
-    ddpg.critic.load_state_dict(torch.load('critic_model.pt'))
-    ddpg.critic_target.load_state_dict(torch.load('critic_target_model.pt'))
-    with open('fm', 'rb') as file:
+    td3.actor.load_state_dict(torch.load('actor_model.pt'))
+    td3.critic.load_state_dict(torch.load('critic_model.pt'))
+    td3.critic_target.load_state_dict(torch.load('critic_target_model.pt'))
+    with open('replay_buffer', 'rb') as file:
         dict = pickle.load(file)
-        fm = dict['buffer']
-        if len(fm)>=512 and not policy_training: policy_training = True
-    print('models loaded, buffer length', len(fm))
+        replay_buffer = dict['buffer']
+        if len(replay_buffer)>=512 and not policy_training: policy_training = True
+    print('models loaded, buffer length', len(replay_buffer))
 except:
     print("problem during loading models")
 
@@ -303,7 +303,7 @@ for i in range(num_episodes):
     #**********This part can be done with real robot before training***********
     #-------------------pre-training for big buffer > 10240--------------------
 
-    ddpg.train_ctrl(policy_training, fm, episodic=True)
+    td3.train_ctrl(policy_training, replay_buffer, episodic=True)
    
 
     #-------------slightly random initial configuration as in OpenAI Pendulum-------------
@@ -327,18 +327,16 @@ for i in range(num_episodes):
     done = False
     for steps in range(1,1000000,1):
          #-------------------decreases dependence on random seed: ------------------
-        if not policy_training: ddpg.actor.apply(init_weights)
-        if len(fm)>=1024 and not policy_training: policy_training = True
+        if not policy_training: td3.actor.apply(init_weights)
+        if len(replay_buffer)>=1024 and not policy_training: policy_training = True
 
-        action = ddpg.select_action(obs, policy_training)
+        action = td3.select_action(obs, policy_training)
         next_obs, reward, done, info, _ = env.step(action)
-        fm.add_average([obs, action, reward, next_obs, done])
+        replay_buffer.add_average([obs, action, reward, next_obs, done])
         obs = next_obs
         rewards.append(reward)
-        
-        ddpg.train_ctrl(policy_training, fm, episodic=False)
 
-            
+        td3.train_ctrl(policy_training, replay_buffer)
 
         counter += 1
         if done: break
@@ -354,38 +352,37 @@ for i in range(num_episodes):
     #--------------------testing-------------------------
     if policy_training and i%100==0:
         
-        torch.save(ddpg.actor.state_dict(), 'actor_model.pt')
-        torch.save(ddpg.critic.state_dict(), 'critic_model.pt')
-        torch.save(ddpg.critic_target.state_dict(), 'critic_target_model.pt')
+        torch.save(td3.actor.state_dict(), 'actor_model.pt')
+        torch.save(td3.critic.state_dict(), 'critic_model.pt')
+        torch.save(td3.critic_target.state_dict(), 'critic_target_model.pt')
         print("saving... ", end="")
-        with open('fm', 'wb') as file:
-            pickle.dump({'buffer': fm}, file)
+        with open('replay_buffer', 'wb') as file:
+            pickle.dump({'buffer': replay_buffer}, file)
         print("> done")
 
         for test_episode in range(10):
 
             #-----------------pre-training for big buffer > 10240---------------
-            ddpg.train_ctrl(policy_training, fm, episodic=True)
+            td3.train_ctrl(policy_training, replay_buffer, episodic=True)
 
             obs = env_test.reset()[0]
             rewards = []
             done = False
             for steps in range(1,1000000,1):
-                action = ddpg.select_action(obs, policy_training)
+                action = td3.select_action(obs, policy_training)
                 next_obs, reward, done, info , _ = env_test.step(action)
-                fm.add_average([obs, action, reward, next_obs, done])
+                replay_buffer.add_average([obs, action, reward, next_obs, done])
                 obs = next_obs
                 rewards.append(reward)
 
-                ddpg.train_ctrl(policy_training, fm, episodic=False)
-
+                td3.train_ctrl(policy_training, replay_buffer)
 
                 
                 counter += 1
                 if done: break
             total_reward = sum(rewards)
             test_rewards.append(total_reward)
-        print(f"Validation, Avg Rtrn = {np.mean(test_rewards[-10:]):.2f}, buffer len {len(fm)}| all steps {counter}")
+        print(f"Validation, Avg Rtrn = {np.mean(test_rewards[-10:]):.2f}, buffer len {len(replay_buffer)}| all steps {counter}")
 
     #====================================================
     
