@@ -336,7 +336,7 @@ for i in range(num_episodes):
         obs = next_obs
         rewards.append(reward)
 
-        td3.train_ctrl(policy_training, replay_buffer)
+        td3.train_ctrl(policy_training, replay_buffer, steps%30000==0)
 
         counter += 1
         if done: break
@@ -375,7 +375,7 @@ for i in range(num_episodes):
                 obs = next_obs
                 rewards.append(reward)
 
-                td3.train_ctrl(policy_training, replay_buffer)
+                td3.train_ctrl(policy_training, replay_buffer, steps%30000==0)
 
                 
                 counter += 1
