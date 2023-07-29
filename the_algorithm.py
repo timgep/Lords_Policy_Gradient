@@ -202,7 +202,7 @@ class DDPG(object):
         if policy_training:
             ddpg.train(fm.sample(self.device))
             if episodic:
-                for _ in range(min(len(fm.buffer)//5120, self.max_updates)):
+                for _ in range(min(len(fm.buffer)//10240, self.max_updates)):
                     ddpg.train(fm.sample(self.device, batch_size=2560))
                 
 
