@@ -13,7 +13,7 @@ import copy
 import pickle
 import time
 
-max_updates = 32 # maximum number of updates between episodes
+max_updates = 70 # maximum number of updates between episodes
 
 
 #used to create random seeds in Actor -> less dependendance on the specific random seed.
@@ -80,10 +80,10 @@ class FadingMemories:
 
 
     def sample(self, device, batch_size=255):
-        if len(self.buffer) <  2*batch_size: return None
+        if len(self.buffer) <  4*batch_size: return None
 
         # samples big batch then re-samples smaller batch with less priority to old data
-        sample_indices = random.sample(self.indices, k= 2*batch_size)
+        sample_indices = random.sample(self.indices, k= 4*batch_size)
         probs = self.fade(np.array(sample_indices)/self.length)
         batch_indices = np.random.default_rng().choice(sample_indices, p=probs/np.sum(probs), size=batch_size, replace=False)
         batch = [self.buffer[indx-1] for indx in batch_indices]
@@ -313,7 +313,6 @@ for i in range(num_episodes):
         next_obs, reward, done, info, _ = env.step(action)
         obs = next_obs
         rewards.append(reward)
-        ddpg.train_ctrl(policy_training, fm, episodic=False)
         counter += 1
         if done: break
         
@@ -329,7 +328,7 @@ for i in range(num_episodes):
     for steps in range(1,1000000,1):
          #-------------------decreases dependence on random seed: ------------------
         if not policy_training: ddpg.actor.apply(init_weights)
-        if len(fm)>=512 and not policy_training: policy_training = True
+        if len(fm)>=1024 and not policy_training: policy_training = True
 
         action = ddpg.select_action(obs, policy_training)
         next_obs, reward, done, info, _ = env.step(action)
@@ -337,7 +336,7 @@ for i in range(num_episodes):
         obs = next_obs
         rewards.append(reward)
         
-        ddpg.train_ctrl(policy_training, fm, steps%5120==0)
+        ddpg.train_ctrl(policy_training, fm, episodic=False)
 
             
 
@@ -378,7 +377,7 @@ for i in range(num_episodes):
                 obs = next_obs
                 rewards.append(reward)
 
-                ddpg.train_ctrl(policy_training, fm, steps%5120==0)
+                ddpg.train_ctrl(policy_training, fm, episodic=False)
 
 
                 
